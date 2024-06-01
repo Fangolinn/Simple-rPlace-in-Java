@@ -1,0 +1,23 @@
+{
+	"folders": [
+		{
+			"name": "client",
+			"path": "../client"
+		},
+		{
+			"name": "server",
+			"path": "../server"
+		},
+		{
+			"name": "common",
+			"path": "../common"
+		},
+		{
+			"name": "projekt",
+			"path": ".."
+		},
+	],
+	"settings": {
+		"java.configuration.updateBuildConfiguration": "automatic"
+	}
+}
