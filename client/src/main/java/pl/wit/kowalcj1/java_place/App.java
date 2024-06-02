@@ -8,23 +8,16 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 public class App {
-        private static final Logger log = LogManager.getLogger(App.class);
-
+    private static final Logger log = LogManager.getLogger(App.class);
 
     private Frontend frontend;
 
     public void start() {
-        try {
-            TimeUnit.SECONDS.sleep(5);
-        } catch (InterruptedException e) {
-            log.error("Error while waiting", e);
-        }
-
         SwingUtilities.invokeLater(() -> {
             frontend = new Frontend();
             frontend.setVisible(true);
         });
 
-        SwingUtilities.invokeLater(() -> frontend.initConnection());
+        // SwingUtilities.invokeLater(() -> frontend.initConnection());
     }
 }

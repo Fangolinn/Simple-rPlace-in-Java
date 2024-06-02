@@ -2,6 +2,8 @@ package pl.wit.kowalcj1.java_place;
 
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.GridLayout;
+import java.awt.ScrollPane;
 
 import javax.swing.BoxLayout;
 import javax.swing.JFrame;
@@ -9,6 +11,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
+import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
 import org.apache.logging.log4j.LogManager;
@@ -16,6 +19,8 @@ import org.apache.logging.log4j.Logger;
 
 public class Frontend extends JFrame implements FrontendAPI {
     private static final Logger log = LogManager.getLogger(Frontend.class);
+
+    private static final int GRID_SIZE = 10;
 
     private JLabel connectionStatus;
     private ChatHistory chat;
@@ -26,7 +31,7 @@ public class Frontend extends JFrame implements FrontendAPI {
         backend = new Backend(this);
 
         this.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        this.setSize(800, 800);
+        this.setSize(1000, 1000);
         this.setLocationRelativeTo(null);
         this.setLayout(new BoxLayout(getContentPane(), BoxLayout.Y_AXIS));
 
@@ -38,22 +43,14 @@ public class Frontend extends JFrame implements FrontendAPI {
         connectionStatusPanel.add(connectionStatus);
         connectionStatusPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
 
-        JTextField textInput = new JTextField();
-        textInput.setMaximumSize(new Dimension(Integer.MAX_VALUE, 10));
-        textInput.addActionListener(e -> {
-            backend.sendMessage(new Message("randomuser", textInput.getText()));
-            textInput.setText("");
-        });
+        Grid grid = new Grid(GRID_SIZE);
+        grid.setPreferredSize(new Dimension(1000, 1000));
 
-        chat = new ChatHistory();
-        chat.setEditable(false);
-        chat.setWrapStyleWord(false);
-
-        JScrollPane scrollPane = new JScrollPane(chat);
+        JScrollPane scrollableGrid = new JScrollPane(grid, ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollableGrid.setMaximumSize(grid.getPreferredSize());
 
         this.add(connectionStatusPanel);
-        this.add(textInput);
-        this.add(scrollPane);
+        this.add(scrollableGrid);
     }
 
     public void initConnection() {
