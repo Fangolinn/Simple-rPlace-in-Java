@@ -23,7 +23,6 @@ public class Frontend extends JFrame implements FrontendAPI {
     private static final int GRID_SIZE = 10;
 
     private JLabel connectionStatus;
-    private ChatHistory chat;
 
     private final transient Backend backend;
 
@@ -46,11 +45,8 @@ public class Frontend extends JFrame implements FrontendAPI {
         Grid grid = new Grid(GRID_SIZE);
         grid.setPreferredSize(new Dimension(1000, 1000));
 
-        JScrollPane scrollableGrid = new JScrollPane(grid, ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        scrollableGrid.setMaximumSize(grid.getPreferredSize());
-
         this.add(connectionStatusPanel);
-        this.add(scrollableGrid);
+        this.add(grid);
     }
 
     public void initConnection() {
@@ -65,6 +61,6 @@ public class Frontend extends JFrame implements FrontendAPI {
 
     @Override
     public void newChatMessage(Message message) {
-        SwingUtilities.invokeLater(() -> chat.addMessage(message));
+        // SwingUtilities.invokeLater(() -> chat.addMessage(message));
     }
 }
