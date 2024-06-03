@@ -31,12 +31,12 @@ public class Backend {
         return connection.isConnected();
     }
 
-    public void sendMessage(Message message){
-        connection.sendMessage(message);
+    public void sendUpdate(CellInfo cellInfo){
+        connection.sendUpdate(cellInfo);
     }
 
     public void startListening(){
         connection.startListening(frontendAPI);
-        log.info("Listening for incoming messages...");
+        log.info("Listening for incoming updates...");
     }
 }

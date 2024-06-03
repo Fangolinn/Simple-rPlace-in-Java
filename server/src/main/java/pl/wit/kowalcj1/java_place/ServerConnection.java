@@ -1,10 +1,9 @@
 package pl.wit.kowalcj1.java_place;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.io.EOFException;
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Collections;
@@ -18,6 +17,7 @@ public class ServerConnection {
     private static final Logger log = LogManager.getLogger(ServerConnection.class);
 
     private final Set<ClientHandler> connectedClients = Collections.synchronizedSet(new HashSet<>());
+    private Set<CellInfo> boardState = Collections.synchronizedSet(new HashSet<>());
 
     public void startServer() {
         try (ServerSocket serverSocket = new ServerSocket(2137)) {
@@ -44,9 +44,8 @@ public class ServerConnection {
         public ClientHandler(Socket socket) {
             this.clientSocket = socket;
             try {
-                // Create ObjectOutputStream before ObjectInputStream
                 this.output = new ObjectOutputStream(clientSocket.getOutputStream());
-                this.output.flush(); // Ensure the stream is initialized
+                this.output.flush();
                 this.input = new ObjectInputStream(clientSocket.getInputStream());
             } catch (Exception e) {
                 log.error("Error creating stream objects: ", e);
@@ -56,12 +55,21 @@ public class ServerConnection {
         @Override
         public void run() {
             log.debug("Starting ClientHandler for client: {}", clientSocket.getInetAddress());
+
+            sendBoard();
+
             try {
-                Message inputMsg;
-                while ((inputMsg = (Message) input.readObject()) != null) {
-                    log.debug("Received message: '{}'", inputMsg);
-                    broadcastMessage(inputMsg);
+                CellInfo incomingUpdate;
+                while ((incomingUpdate = (CellInfo) input.readObject()) != null) {
+                    log.debug("Received update: '{}'", incomingUpdate);
+                    if (!boardState.add(incomingUpdate)){
+                        boardState.remove(incomingUpdate);
+                        boardState.add(incomingUpdate);
+                    }
+                    broadcastMessage(incomingUpdate);
                 }
+            } catch (EOFException e) {
+                log.info("Connection closed.");
             } catch (Exception e) {
                 log.error("Error in client handler: ", e);
             } finally {
@@ -75,15 +83,25 @@ public class ServerConnection {
             }
         }
 
-        private void broadcastMessage(Message message) {
+        private void sendBoard() {
+            for (CellInfo cellInfo : boardState) {
+                try {
+                    output.writeObject(cellInfo);
+                } catch (IOException e) {
+                    log.error("Error sending CellInfo to client: {}", cellInfo, e);
+                }
+            }
+        }
+
+        private void broadcastMessage(CellInfo incomingUpdate) {
             synchronized (connectedClients) {
-                log.debug("Broadcasting message: '{}'", message);
+                log.debug("Broadcasting update: '{}'", incomingUpdate);
                 for (ClientHandler clientHandler : connectedClients) {
                     try {
-                        clientHandler.output.writeObject(message);
-                        clientHandler.output.flush();
+                        clientHandler.output.writeObject(incomingUpdate);
+                        clientHandler.output.reset();
                     } catch (Exception e) {
-                        log.error("Error broadcasting message to client: ", e);
+                        log.error("Error broadcasting update to client: ", e);
                     }
                 }
             }

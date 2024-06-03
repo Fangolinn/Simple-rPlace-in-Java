@@ -1,9 +1,12 @@
 package pl.wit.kowalcj1.java_place;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.net.SocketException;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -29,6 +32,9 @@ public class Connection {
                 socket.close();
                 log.info("Connection closed");
             }
+
+            writer = null;
+            reader = null;
         } catch (Exception e) {
             log.error("Failed to close connection", e);
         }
@@ -41,6 +47,7 @@ public class Connection {
     private void createWriter() {
         try {
             writer = new ObjectOutputStream(socket.getOutputStream());
+            writer.flush();
             log.debug("Writer created");
         } catch (IOException e) {
             log.error("Failed to create writer for socket", e);
@@ -48,6 +55,9 @@ public class Connection {
     }
 
     private void createReader() {
+        if (writer == null)
+            createWriter();
+
         try {
             reader = new ObjectInputStream(socket.getInputStream());
             log.debug("Reader created");
@@ -56,16 +66,17 @@ public class Connection {
         }
     }
 
-    public void sendMessage(Message message) {
+    public void sendUpdate(CellInfo cell) {
         if (writer == null)
             createWriter();
 
         try {
-            writer.writeObject(message);
+            writer.writeObject(cell);
+            writer.reset();
         } catch (IOException e) {
             log.error("Error while writing message", e);
         }
-        log.info("Message sent: '{}'", message);
+        log.debug("CellInfo sent: '{}'", cell);
 
     }
 
@@ -74,12 +85,14 @@ public class Connection {
             createReader();
 
         new Thread(() -> {
-            Message message;
+            CellInfo cellInfo;
             try {
-                while ((message = (Message) reader.readObject()) != null) {
-                    log.info("Message received: '{}'", message);
-                    frontendAPI.newChatMessage(message);
+                while ((cellInfo = (CellInfo) reader.readObject()) != null) {
+                    log.debug("CellInfo received: '{}'", cellInfo);
+                    frontendAPI.updateCell(cellInfo);
                 }
+            } catch (EOFException | SocketException e) {
+                close();
             } catch (Exception e) {
                 log.error("Error while reading messages", e);
             }

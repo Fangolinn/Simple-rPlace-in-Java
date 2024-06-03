@@ -11,6 +11,8 @@ import java.awt.event.MouseWheelEvent;
 
 import javax.swing.JButton;
 import javax.swing.JComponent;
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JViewport;
@@ -24,33 +26,39 @@ import org.apache.logging.log4j.Logger;
 public class Grid extends JScrollPane {
     private static final Logger log = LogManager.getLogger(Grid.class);
 
-    private JPanel cells;
+    private JPanel cellsContainer;
 
-    private JButton[][] buttons;
+    private JButton[][] cells;
     private Point origin;
 
-    public Grid(int gridSize) {
-        super(ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        cells = new JPanel(new GridLayout(gridSize, gridSize));
+    private ColorSelector colorSelector;
+    private Backend backend;
 
-        this.getViewport().add(cells);
+    public Grid(int gridSize, ColorSelector colorSelector, Backend backend) {
+        super(ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+
+        this.colorSelector = colorSelector;
+        this.backend = backend;
+
+        cellsContainer = new JPanel(new GridLayout(gridSize, gridSize));
+        cellsContainer.setBorder(new LineBorder(Color.GRAY, 20));
+
+        this.getViewport().add(cellsContainer);
 
         this.setWheelScrollingEnabled(false);
 
-        buttons = new GridCell[gridSize][gridSize];
+        cells = new GridCell[gridSize][gridSize];
 
         for (int i = 0; i < gridSize; i++) {
             for (int j = 0; j < gridSize; j++) {
-                GridCell button = new GridCell(i, j);
-                button.setBackground(Color.WHITE);
-                button.setBorder(new LineBorder(Color.BLACK));
+                GridCell cell = new GridCell(i, j, Color.WHITE);
 
-                buttons[i][j] = button;
-                cells.add(button);
+                cells[i][j] = cell;
+                cellsContainer.add(cell);
             }
         }
 
-        cells.addMouseListener(new MouseAdapter() {
+        cellsContainer.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
                 if (SwingUtilities.isRightMouseButton(e)) {
@@ -59,11 +67,11 @@ public class Grid extends JScrollPane {
             }
         });
 
-        cells.addMouseMotionListener(new MouseAdapter() {
+        cellsContainer.addMouseMotionListener(new MouseAdapter() {
             @Override
             public void mouseDragged(MouseEvent e) {
                 if (SwingUtilities.isRightMouseButton(e)) {
-                    JViewport viewport = (JViewport) SwingUtilities.getAncestorOfClass(JViewport.class, cells);
+                    JViewport viewport = (JViewport) SwingUtilities.getAncestorOfClass(JViewport.class, cellsContainer);
                     if (viewport != null && origin != null) {
                         Point current = e.getPoint();
                         Point viewPosition = viewport.getViewPosition();
@@ -77,40 +85,40 @@ public class Grid extends JScrollPane {
             }
         });
 
-        cells.addMouseWheelListener(e -> {
+        cellsContainer.addMouseWheelListener(e -> {
             if (e.getScrollType() == MouseWheelEvent.WHEEL_UNIT_SCROLL) {
-                int notches = e.getWheelRotation();
-                Dimension size = cells.getPreferredSize();
-                int newSize = Math.max(size.width + notches * 10, gridSize * 10); // Ensure minimum size
+                int notches = -e.getWheelRotation();
+                Dimension size = cellsContainer.getPreferredSize();
+                int newSize = Math.max(size.width + notches * 80, gridSize * 10);
                 this.setPreferredSize(new Dimension(newSize, newSize));
-                cells.revalidate();
+                cellsContainer.revalidate();
             }
         });
     }
 
     @Override
     public void setPreferredSize(Dimension preferredSize) {
-        cells.setPreferredSize(preferredSize);
-        this.setMaximumSize(preferredSize);
+        cellsContainer.setPreferredSize(preferredSize);
+        super.setPreferredSize(preferredSize);
+    }
+
+    public void updateCell(CellInfo cellInfo) {
+        cells[cellInfo.getiCoord()][cellInfo.getjCoord()].setBackground(cellInfo.getColor());
     }
 
     private class GridCell extends JButton {
-        private int iCoord;
-        private int jCoord;
+        private CellInfo cellInfo;
 
-        public int getiCoord() {
-            return iCoord;
+        public CellInfo getCellInfo() {
+            return cellInfo;
         }
 
-        public int getjCoord() {
-            return jCoord;
-        }
-
-        public GridCell(int iCoord, int jCoord) {
-            this.iCoord = iCoord;
-            this.jCoord = jCoord;
+        public GridCell(int iCoord, int jCoord, Color color) {
+            this.cellInfo = new CellInfo(iCoord, jCoord, color);
 
             this.setOpaque(true);
+            this.setBackground(color);
+            this.setBorder(null);
 
             this.addMouseListener(new MouseAdapter() {
                 private Color borderColor = Color.BLACK;
@@ -119,8 +127,16 @@ public class Grid extends JScrollPane {
 
                 @Override
                 public void mousePressed(MouseEvent e) {
-                    if (SwingUtilities.isRightMouseButton(e)) {
-                        MouseEvent newEvent = new MouseEvent(cells,
+                    if (SwingUtilities.isLeftMouseButton(e)) {
+                        Color selectedColor = colorSelector.getSelectedColor();
+                        if (!backend.isConnectionActive()){
+                            JOptionPane.showMessageDialog(SwingUtilities.getAncestorOfClass(JFrame.class, Grid.this), "Not connected!");
+                        } else if (!getBackground().equals(selectedColor)) {
+                            GridCell.this.setBackground(selectedColor);
+                            backend.sendUpdate(GridCell.this.getCellInfo());
+                        }
+                    } else if (SwingUtilities.isRightMouseButton(e)) {
+                        MouseEvent newEvent = new MouseEvent(cellsContainer,
                                 e.getID(),
                                 System.currentTimeMillis(),
                                 e.getModifiersEx(),
@@ -130,7 +146,8 @@ public class Grid extends JScrollPane {
                                 e.isPopupTrigger(),
                                 e.getButton());
 
-                        cells.dispatchEvent(newEvent);
+                        cellsContainer.dispatchEvent(newEvent);
+
                     }
                 }
 
@@ -149,7 +166,7 @@ public class Grid extends JScrollPane {
                 @Override
                 public void mouseDragged(MouseEvent e) {
                     if (SwingUtilities.isRightMouseButton(e)) {
-                        MouseEvent newEvent = new MouseEvent(cells,
+                        MouseEvent newEvent = new MouseEvent(cellsContainer,
                                 e.getID(),
                                 System.currentTimeMillis(),
                                 e.getModifiersEx(),
@@ -159,10 +176,18 @@ public class Grid extends JScrollPane {
                                 e.isPopupTrigger(),
                                 e.getButton());
 
-                        cells.dispatchEvent(newEvent);
+                        cellsContainer.dispatchEvent(newEvent);
                     }
                 }
             });
+        }
+
+        @Override
+        public void setBackground(Color bg) {
+            if (getCellInfo() != null)
+                getCellInfo().setColor(bg);
+
+            super.setBackground(bg);
         }
     }
 }

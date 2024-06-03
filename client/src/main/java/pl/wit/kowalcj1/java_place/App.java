@@ -1,7 +1,5 @@
 package pl.wit.kowalcj1.java_place;
 
-import java.util.concurrent.TimeUnit;
-
 import javax.swing.SwingUtilities;
 
 import org.apache.logging.log4j.LogManager;
@@ -18,6 +16,6 @@ public class App {
             frontend.setVisible(true);
         });
 
-        // SwingUtilities.invokeLater(() -> frontend.initConnection());
+        SwingUtilities.invokeLater(() -> frontend.initConnection());
     }
 }
